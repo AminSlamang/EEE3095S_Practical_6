@@ -1,12 +1,9 @@
-// Code your testbench here
-// or browse Examples
 `timescale 1ns / 1ps
 
 module tb_reg_mem;
 
     parameter DATA_WIDTH = 8; //8 bit wide data
     parameter ADDR_BITS = 5; //32 Addresses
-    
 
     reg [ADDR_BITS-1:0] addr;
     reg [DATA_WIDTH-1:0] data_in;
@@ -17,8 +14,6 @@ module tb_reg_mem;
     reg_mem #(DATA_WIDTH,ADDR_BITS) RM (addr, data_in, wen, clk, data_out);
 
     initial begin
-       
-        
         
         clk = 0;
         wen = 1;
@@ -41,8 +36,6 @@ module tb_reg_mem;
             $display("Read %d from address %d",data_in,addr);
             repeat (2) #1 clk = ~clk;
         end
-
-
         
     end
 endmodule
@@ -57,10 +50,13 @@ module tb_simple_CPU;
    
     reg clk, rst;
     reg [INSTR_WIDTH-1:0] instruction;
-  	wire [DATA_WIDTH-1:0] regfile [0:3];
+    wire [DATA_WIDTH-1:0] regfile_0;
+    wire [DATA_WIDTH-1:0] regfile_1;
+    wire [DATA_WIDTH-1:0] regfile_2;
+    wire [DATA_WIDTH-1:0] regfile_3;
 
     
-  simple_cpu  #(DATA_WIDTH,ADDR_BITS,INSTR_WIDTH) SCPU_DUT(clk, rst, instruction);
+  simple_cpu  #(DATA_WIDTH,ADDR_BITS,INSTR_WIDTH) SCPU_DUT(clk, rst, instruction, regfile_0, regfile_1, regfile_2, regfile_3);
     
     initial begin
         clk = 1'b1;
@@ -78,38 +74,40 @@ module tb_simple_CPU;
             * ADD = opcode 0, SUB = opcode 1  
         */
             
-                                        //ADD:    reg0  = reg1 + reg3   //1+3=4
+        //ADD:    reg0  = reg1 + reg3   //1+3=4
         //In the instruction this is:    (instr)  (X1)    (X2)   (X3)  
         instruction = 20'b01000111000000000000;
         repeat(8) #1 clk=!clk; //4 rising edges
         
-                                        //ADD:    reg1  = reg0 + reg3   //4+3=7
+        //ADD:    reg1  = reg0 + reg3   //4+3=7
         //In the instruction this is:    (instr)  (X1)    (X2)   (X3)
         instruction = 20'b01010011000000000000;
         repeat(6) #1 clk=!clk; 
                 
-                                         //SUB:   reg3  = reg0 - reg2  //4-2=2  
-       //In the instruction this is:    (instr)  (X1)    (X2)   (X3) 
+        //SUB:   reg3  = reg0 - reg2  //4-2=2  
+        //In the instruction this is:    (instr)  (X1)    (X2)   (X3) 
         instruction = 20'b01110010000000000001;
         repeat(6) #1 clk=!clk;
         
-                                         //STORE_R:   DATA_MEM(reg2 + 15) = reg1  //DATA_MEM(2+15)=7  
+        //STORE_R:   DATA_MEM(reg2 + 15) = reg1  //DATA_MEM(2+15)=7  
         //In the instruction this is:    (instr)               (X2)         (X1)
         instruction = 20'b11011000000011110000;
         repeat(6) #1 clk=!clk;
         
-                                           //STORE_R:   DATA_MEM(reg3 + 20) = reg0  //DATA_MEM(2+20)= 4  
+        //STORE_R:   DATA_MEM(reg3 + 20) = reg0  //DATA_MEM(2+20)= 4  
         //In the instruction this is:    (instr)                 (X2)         (X1)
         instruction = 20'b11001100000101100000;
         repeat(6) #1 clk=!clk;
 
-                                           //LOAD_R:   DATA_MEM(reg2 + 15) = reg3  //reg3 = DATA_MEM(2+15)  -> reg3 becomes 7  
+        //LOAD_R:   DATA_MEM(reg2 + 15) = reg3  //reg3 = DATA_MEM(2+15)  -> reg3 becomes 7  
         //In the instruction this is:    (instr)                (X2)         (X1)
         instruction = 20'b10111000000011110000;
+        repeat(7) #1 clk=!clk;
+      	
+      	 instruction = 20'b10101100000101000000;
         repeat(7) #1 clk=!clk;
         
         
     end
-    
     
 endmodule

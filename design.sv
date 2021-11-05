@@ -1,7 +1,8 @@
-// Code your design here
+// KTNRIO001 - Rio Katundulu
+// SLMAMI010 - Amin Slamang
 `timescale 1ns / 1ps
 
-module simple_cpu( clk, rst, instruction);
+module simple_cpu( clk, rst, instruction,regfile_0_i,regfile_1_i,regfile_2_i,regfile_3_i);
 
     parameter DATA_WIDTH = 8; //8 bit wide data
     parameter ADDR_BITS = 5; //32 Addresses
@@ -9,8 +10,10 @@ module simple_cpu( clk, rst, instruction);
 
     input [INSTR_WIDTH-1:0] instruction;
     input clk, rst;
-	
-  	output reg [DATA_WIDTH-1:0] regfile;
+    output reg [DATA_WIDTH-1:0] regfile_0_i;
+    output reg [DATA_WIDTH-1:0] regfile_1_i;
+    output reg [DATA_WIDTH-1:0] regfile_2_i;
+    output reg [DATA_WIDTH-1:0] regfile_3_i;
     //Wires for connecting to data memory    
     wire [ADDR_BITS-1:0] addr_i;
     wire [DATA_WIDTH-1:0] data_in_i, data_out_i, result2_i ;
@@ -25,21 +28,16 @@ module simple_cpu( clk, rst, instruction);
     wire [DATA_WIDTH-1:0]offset_i;
     wire sel1_i, sel3_i;
     wire [DATA_WIDTH-1:0] operand_1_i, operand_2_i;
-  	wire [DATA_WIDTH-1:0] regfile_i;
-
-    
     
     //Instantiating an alu1
     alu #(DATA_WIDTH) alu1 (clk, operand_a_i, operand_b_i, opcode_i, result1_i);
      
     //instantiation of data memory
-  reg_mem  #(ADDR_BITS,DATA_WIDTH) data_memory(result1_i, data_in_i, wen_i, clk, data_out_i);
+    reg_mem  #(ADDR_BITS,DATA_WIDTH) data_memory(result1_i, data_in_i, wen_i, clk, data_out_i);
     
     //Instantiation of a CU
     CU  #(DATA_WIDTH,ADDR_BITS, INSTR_WIDTH) CU1(clk, rst, instruction, result2_i,
-        operand_1_i, operand_2_i, offset_i, opcode_i, sel1_i, sel3_i, wen_i);
-    
-
+        operand_1_i, operand_2_i, offset_i, opcode_i, sel1_i, sel3_i, wen_i, regfile_0_i, regfile_1_i, regfile_2_i, regfile_3_i);
     
     //Connect CU to ALU
     assign operand_a_i = operand_1_i;
@@ -50,46 +48,8 @@ module simple_cpu( clk, rst, instruction);
     
     //Connect datamem to CU
     assign result2_i = (sel1_i == 0) ? data_out_i : (sel1_i == 1) ? result1_i : 8'bx;  
-    
-
-
-    
-    
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 endmodule
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 module alu( clk, operand_a, operand_b, opcode, result);
     parameter DATA_WIDTH = 8;
@@ -114,7 +74,7 @@ endmodule
 
 `timescale 1ns / 1ps
 
-module CU (clk,rst, instr, result2, operand1, operand2, offset, opcode, sel1, sel3,w_r);
+module CU (clk,rst, instr, result2, operand1, operand2, offset, opcode, sel1, sel3,w_r,regfile_0,regfile_1,regfile_2,regfile_3);
     //Defaults unless overwritten during instantiation
     parameter DATA_WIDTH = 8; //8 bit wide data
     parameter ADDR_BITS = 5; //32 Addresses
@@ -132,8 +92,11 @@ module CU (clk,rst, instr, result2, operand1, operand2, offset, opcode, sel1, se
     output reg sel1, sel3, w_r;
 
     //REGISTER FILE: CU internal register file of 4 registers.  This is a over simplication of a real solution
-  	reg [DATA_WIDTH-1:0] regfile [0:3];
-    reg [INSTR_WIDTH-1:0]instruction;
+    output reg [DATA_WIDTH-1:0] regfile_0;
+    output reg [DATA_WIDTH-1:0] regfile_1;
+    output reg [DATA_WIDTH-1:0] regfile_2;
+    output reg [DATA_WIDTH-1:0] regfile_3;
+    output reg [INSTR_WIDTH-1:0]instruction;
     
     //STATES
     parameter RESET = 4'b0000;
@@ -156,10 +119,10 @@ module CU (clk,rst, instr, result2, operand1, operand2, offset, opcode, sel1, se
                     end
                 //-----------------------------
                 //Write initial values to regfile
-                regfile[0]<= 8'd0;
-                regfile[1]<= 8'd1;
-                regfile[2]<= 8'd2;
-                regfile[3]<= 8'd3;
+                regfile_0<= 8'd0;
+                regfile_1<= 8'd1;
+                regfile_2<= 8'd2;
+                regfile_3<= 8'd3;
 
                 //Set output reset defaults
                 operand1 <= #(DATA_WIDTH)'d0;
@@ -175,16 +138,40 @@ module CU (clk,rst, instr, result2, operand1, operand2, offset, opcode, sel1, se
             DECODE : begin //#1
                 state = EXECUTE; //#2
                 if (instruction[19:18] == 2'b1) begin //std_op
-                    operand1 <= regfile[instruction[15:14]]; //X2
-                    operand2 <= regfile[instruction[13:12]]; //X3
+                  case(instruction[15:14]) //X2
+                    2'b00 : operand1 <= regfile_0;
+                    2'b01 : operand1 <= regfile_1;
+                    2'b10 : operand1 <= regfile_2;
+                    2'b11 : operand1 <= regfile_3;
+                  endcase
+                    //operand1 <= regfile[instruction[15:14]]; //X2
+                  case(instruction[13:12]) //X3
+                    2'b00 : operand2 <= regfile_0;
+                    2'b01 : operand2 <= regfile_1;
+                    2'b10 : operand2 <= regfile_2;
+                    2'b11 : operand2 <= regfile_3;
+                  endcase
+                    //operand2 <= regfile[instruction[13:12]]; //X3
                     offset <= instruction[11:4];
                     opcode <= instruction[3:0];
                    sel1 <= 1;
                     sel3 <= 0;
                     w_r <= 0;
                 end else if (instruction[19:18] == 2'b10) begin //loadR 
-                    operand1 <= regfile[instruction[15:14]]; //X2
-                    operand2 <= regfile[instruction[17:16]]; //z
+                  case(instruction[15:14]) //X2
+                    2'b00 : operand1 <= regfile_0;
+                    2'b01 : operand1 <= regfile_1;
+                    2'b10 : operand1 <= regfile_2;
+                    2'b11 : operand1 <= regfile_3;
+                  endcase
+                    //operand1 <= regfile[instruction[15:14]]; //X2
+                  case(instruction[17:16]) //z
+                    2'b00 : operand2 <= regfile_0;
+                    2'b01 : operand2 <= regfile_1;
+                    2'b10 : operand2 <= regfile_2;
+                    2'b11 : operand2 <= regfile_3;
+                  endcase
+                    //operand2 <= regfile[instruction[17:16]]; //z
                     offset <= instruction[11:4];
                     opcode <= instruction[3:0];
                     sel1 <= 0; //pass data_out
@@ -196,8 +183,20 @@ module CU (clk,rst, instr, result2, operand1, operand2, offset, opcode, sel1, se
                    * FILL IN CORRECT CODE HERE
                    *
                    ********************************************/ 
-                	operand1 <= regfile[instruction[17:16]];
-					operand2 <= regfile[instruction[15:14]];
+                  case(instruction[15:14]) //X1
+                    2'b00 : operand1 <= regfile_0;
+                    2'b01 : operand1 <= regfile_1;
+                    2'b10 : operand1 <= regfile_2;
+                    2'b11 : operand1 <= regfile_3;
+                  endcase
+                	//operand1 <= regfile[instruction[17:16]];
+                  case(instruction[17:16]) //X2
+                    2'b00 : operand2 <= regfile_0;
+                    2'b01 : operand2 <= regfile_1;
+                    2'b10 : operand2 <= regfile_2;
+                    2'b11 : operand2 <= regfile_3;
+                  endcase
+					//operand2 <= regfile[instruction[15:14]];
                   	offset <= instruction[11:4];
                     opcode <= instruction[3:0];
                     sel1 <= 0; //pass data_out
@@ -209,8 +208,20 @@ module CU (clk,rst, instr, result2, operand1, operand2, offset, opcode, sel1, se
                 state = MEM_ACCESS; //#3
                 if (instruction[19:18] == 2'b01) begin //std_op
                     state = WRITE_BACK;
-                    operand1 <= regfile[instruction[15:14]]; //X2
-                    operand2 <= regfile[instruction[13:12]]; //X3
+                  case(instruction[15:14]) //X2
+                    2'b00 : operand1 <= regfile_0;
+                    2'b01 : operand1 <= regfile_1;
+                    2'b10 : operand1 <= regfile_2;
+                    2'b11 : operand1 <= regfile_3;
+                  endcase
+                    //operand1 <= regfile[instruction[15:14]]; //X2
+                  case(instruction[13:12]) //X3
+                    2'b00 : operand2 <= regfile_0;
+                    2'b01 : operand2 <= regfile_1;
+                    2'b10 : operand2 <= regfile_2;
+                    2'b11 : operand2 <= regfile_3;
+                  endcase
+                    //operand2 <= regfile[instruction[13:12]]; //X3
                     offset <= instruction[11:4];
                     opcode <= instruction[3:0];
                     sel1 <= 1;
@@ -218,8 +229,20 @@ module CU (clk,rst, instr, result2, operand1, operand2, offset, opcode, sel1, se
                     w_r <= 0;
 
                 end else if (instruction[19:18] == 2'b10) begin //loadR  
-                    operand1 <= regfile[instruction[15:14]]; //X2
-                    operand2 <= regfile[instruction[17:16]]; //z
+                  case(instruction[15:14]) //X2
+                    2'b00 : operand1 <= regfile_0;
+                    2'b01 : operand1 <= regfile_1;
+                    2'b10 : operand1 <= regfile_2;
+                    2'b11 : operand1 <= regfile_3;
+                  endcase
+                    //operand1 <= regfile[instruction[15:14]]; //X2
+                  case(instruction[17:16]) //z
+                    2'b00 : operand2 <= regfile_0;
+                    2'b01 : operand2 <= regfile_1;
+                    2'b10 : operand2 <= regfile_2;
+                    2'b11 : operand2 <= regfile_3;
+                  endcase
+                    //operand2 <= regfile[instruction[17:16]]; //z
                     offset <= instruction[11:4];
                     opcode <= instruction[3:0];
                     sel1 <= 0; //pass data_out
@@ -231,8 +254,20 @@ module CU (clk,rst, instr, result2, operand1, operand2, offset, opcode, sel1, se
                    * FILL IN CORRECT CODE HERE
                    *
                    ********************************************/ 
-                	operand1 <= regfile[instruction[17:16]];
-					operand2 <= regfile[instruction[15:14]];
+                  case(instruction[15:14]) //X1
+                    2'b00 : operand1 <= regfile_0;
+                    2'b01 : operand1 <= regfile_1;
+                    2'b10 : operand1 <= regfile_2;
+                    2'b11 : operand1 <= regfile_3;
+                  endcase
+                	//operand1 <= regfile[instruction[17:16]];
+                  case(instruction[17:16]) //X2
+                    2'b00 : operand2 <= regfile_0;
+                    2'b01 : operand2 <= regfile_1;
+                    2'b10 : operand2 <= regfile_2;
+                    2'b11 : operand2 <= regfile_3;
+                  endcase
+					//operand2 <= regfile[instruction[15:14]];
                   	offset <= instruction[11:4];
                     opcode <= instruction[3:0];
                     sel1 <= 0; //pass data_out
@@ -242,9 +277,21 @@ module CU (clk,rst, instr, result2, operand1, operand2, offset, opcode, sel1, se
             end
             MEM_ACCESS: begin //#3
                 state = WRITE_BACK; //#4
-                if (instruction[19:18] == 2'b10) begin //loadR             
-                    operand1 <= regfile[instruction[15:14]]; //X2
-                    operand2 <= regfile[instruction[17:16]]; //z
+                if (instruction[19:18] == 2'b10) begin //loadR
+                  case(instruction[15:14]) //X2
+                    2'b00 : operand1 <= regfile_0;
+                    2'b01 : operand1 <= regfile_1;
+                    2'b10 : operand1 <= regfile_2;
+                    2'b11 : operand1 <= regfile_3;
+                  endcase
+                    //operand1 <= regfile[instruction[15:14]]; //X2
+                  case(instruction[17:16]) //z
+                    2'b00 : operand2 <= regfile_0;
+                    2'b01 : operand2 <= regfile_1;
+                    2'b10 : operand2 <= regfile_2;
+                    2'b11 : operand2 <= regfile_3;
+                  endcase
+                    //operand2 <= regfile[instruction[17:16]]; //z
                     offset <= instruction[11:4];
                     opcode <= instruction[3:0];
                     sel1 <= 0; //pass data_out
@@ -259,8 +306,20 @@ module CU (clk,rst, instr, result2, operand1, operand2, offset, opcode, sel1, se
                    *
                    ********************************************/ 
                 	state = DECODE;
-                  	operand1 <= regfile[instruction[17:16]];
-					operand2 <= regfile[instruction[15:14]];
+                  case(instruction[15:14]) //X1
+                    2'b00 : operand1 <= regfile_0;
+                    2'b01 : operand1 <= regfile_1;
+                    2'b10 : operand1 <= regfile_2;
+                    2'b11 : operand1 <= regfile_3;
+                  endcase
+                  	//operand1 <= regfile[instruction[17:16]];
+                  case(instruction[17:16]) //X2
+                    2'b00 : operand2 <= regfile_0;
+                    2'b01 : operand2 <= regfile_1;
+                    2'b10 : operand2 <= regfile_2;
+                    2'b11 : operand2 <= regfile_3;
+                  endcase
+					//operand2 <= regfile[instruction[15:14]];
                   	offset <= instruction[11:4];
                     opcode <= instruction[3:0];
                     sel1 <= 0; //pass data_out
@@ -271,10 +330,27 @@ module CU (clk,rst, instr, result2, operand1, operand2, offset, opcode, sel1, se
             WRITE_BACK: begin //#4
                 state = DECODE; //#1
                 if (instruction[19:18] == 2'b01) begin //std_op
-                    regfile[instruction[17:16]] <= result2; //X1
-
-                    operand1 <= regfile[instruction[15:14]]; //X2
-                    operand2 <= regfile[instruction[13:12]]; //X3
+                  case(instruction[17:16]) //X1
+                    2'b00 : regfile_0 <= result2;
+                    2'b01 : regfile_1 <= result2;
+                    2'b10 : regfile_2 <= result2;
+                    2'b11 : regfile_3 <= result2;
+                  endcase
+                    //regfile[instruction[17:16]] <= result2; //X1
+                  case(instruction[15:14]) //X2
+                    2'b00 : operand1 <= regfile_0;
+                    2'b01 : operand1 <= regfile_1;
+                    2'b10 : operand1 <= regfile_2;
+                    2'b11 : operand1 <= regfile_3;
+                  endcase
+                    //operand1 <= regfile[instruction[15:14]]; //X2
+                  case(instruction[13:12]) //X3
+                    2'b00 : operand2 <= regfile_0;
+                    2'b01 : operand2 <= regfile_1;
+                    2'b10 : operand2 <= regfile_2;
+                    2'b11 : operand2 <= regfile_3;
+                  endcase
+                    //operand2 <= regfile[instruction[13:12]]; //X3
                     offset <= instruction[11:4];
                     opcode <= instruction[3:0];
                     sel1 <= 1;
@@ -285,19 +361,49 @@ module CU (clk,rst, instr, result2, operand1, operand2, offset, opcode, sel1, se
                    *
                    * FILL IN CORRECT CODE HERE
                    *
-                   ********************************************/ 
-                	operand1 <= regfile[instruction[17:16]];
-					operand2 <= regfile[instruction[15:14]];
+                   ********************************************/
+                  case(instruction[15:14]) //
+                    2'b00 : operand1 <= regfile_0;
+                    2'b01 : operand1 <= regfile_1;
+                    2'b10 : operand1 <= regfile_2;
+                    2'b11 : operand1 <= regfile_3;
+                  endcase
+                	//operand1 <= regfile[instruction[17:16]];
+                  case(instruction[17:16]) //X2
+                    2'b00 : operand2 <= regfile_0;
+                    2'b01 : operand2 <= regfile_1;
+                    2'b10 : operand2 <= regfile_2;
+                    2'b11 : operand2 <= regfile_3;
+                  endcase
+					//operand2 <= regfile[instruction[15:14]];
                   	offset <= instruction[11:4];
                     opcode <= instruction[3:0];
                     sel1 <= 0; //pass data_out
                     sel3 <= 1; //pass offset
                     w_r <= 1;
                     
-                end else if (instruction[19:18] == 2'b10) begin //loadR             
-                    regfile[instruction[17:16]] <= result2; //From data mem
-                    operand1 <= regfile[instruction[15:14]]; //X2
-                    operand2 <= regfile[instruction[17:16]]; //z
+                end else if (instruction[19:18] == 2'b10) begin //loadR  
+                  case(instruction[17:16]) //X1
+                    2'b00 : regfile_0 <= result2;
+                    2'b01 : regfile_1 <= result2;
+                    2'b10 : regfile_2 <= result2;
+                    2'b11 : regfile_3 <= result2;
+                  endcase
+                    //regfile[instruction[17:16]] <= result2; //From data mem
+                  case(instruction[15:14]) //X2
+                    2'b00 : operand1 <= regfile_0;
+                    2'b01 : operand1 <= regfile_1;
+                    2'b10 : operand1 <= regfile_2;
+                    2'b11 : operand1 <= regfile_3;
+                  endcase
+                    //operand1 <= regfile[instruction[15:14]]; //X2
+                  case(instruction[17:16]) //z
+                    2'b00 : operand2 <= regfile_0;
+                    2'b01 : operand2 <= regfile_1;
+                    2'b10 : operand2 <= regfile_2;
+                    2'b11 : operand2 <= regfile_3;
+                  endcase
+                    //operand2 <= regfile[instruction[17:16]]; //z
                     offset <= instruction[11:4];
                     opcode <= instruction[3:0];
                     sel1 <= 0; //pass data_out
@@ -343,4 +449,3 @@ module reg_mem (addr, data_in, wen, clk, data_out);
     end
 
 endmodule
-
